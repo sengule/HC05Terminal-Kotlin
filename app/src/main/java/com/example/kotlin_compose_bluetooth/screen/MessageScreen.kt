@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-package com.example.kotlin_compose_bluetooth.ui.theme.screens
+package com.example.kotlin_compose_bluetooth.screen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,16 +27,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.kotlin_compose_bluetooth.SERVER_NAME
-import com.example.kotlin_compose_bluetooth.bluetooth.AppBluetoothController
 import com.example.kotlin_compose_bluetooth.model.MessageModel
 import com.example.kotlin_compose_bluetooth.testMessages
 import com.example.kotlin_compose_bluetooth.ui.theme.KotlinComposeBluetoothTheme
-import com.example.kotlin_compose_bluetooth.viewmodels.BluetoothViewModel
 
 
 @Composable

@@ -11,11 +11,10 @@ import androidx.navigation.compose.composable
 import com.example.kotlin_compose_bluetooth.bluetooth.AppBluetoothController
 import com.example.kotlin_compose_bluetooth.screen.NavItem
 import com.example.kotlin_compose_bluetooth.screen.Screen
-import com.example.kotlin_compose_bluetooth.testMessages
-import com.example.kotlin_compose_bluetooth.ui.theme.screens.MessageScreen
-import com.example.kotlin_compose_bluetooth.ui.theme.screens.PermissionScreen
-import com.example.kotlin_compose_bluetooth.ui.theme.screens.ScanScreen
-import com.example.kotlin_compose_bluetooth.viewmodels.BluetoothViewModel
+import com.example.kotlin_compose_bluetooth.screen.MessageScreen
+import com.example.kotlin_compose_bluetooth.screen.PermissionScreen
+import com.example.kotlin_compose_bluetooth.screen.ScanScreen
+import com.example.kotlin_compose_bluetooth.vm.BluetoothViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.MultiplePermissionsState
 
@@ -33,26 +32,31 @@ fun AppNavHost(
     NavHost(navController = navController, startDestination = startDestination){
 
         composable(NavItem.Permission.route){
-            PermissionScreen(multiplePermission = permissions)
+            PermissionScreen(
+                onPermissionGranted = {
+                    bluetoothViewModel.updatePairedDevices()
+                    navController.navigate(Screen.CONNECTION.name)
+                                      },
+                multiplePermission = permissions
+            )
         }
 
         composable(NavItem.Scan.route){
             ScanScreen(
-                scannedDevicesList = bluetoothViewModel.state.collectAsState().value.scannedDevices,
                 pairedDevicesList = bluetoothViewModel.state.collectAsState().value.pairedDevices,
-                isScanning = bluetoothViewModel.isScanning.collectAsState().value,
+                isBluetoothEnabled = bluetoothViewModel.state.collectAsState().value.isEnabled,
+                isConnecting = bluetoothViewModel.isConnecting.collectAsState().value,
                 connectionResult = bluetoothViewModel.state.collectAsState().value.isConnected,
                 onNextButtonClicked = {navController.navigate(Screen.MESSAGE.name)},
-                onScanButtonClicked = {bluetoothViewModel.startScan()},
-                onStopButtonClicked = {bluetoothViewModel.stopScan()},
-                onConnectButtonClicked = { device-> bluetoothViewModel.connect(device)}
+                onConnectButtonClicked = { device-> bluetoothViewModel.connect(device)},
+                onBluetoothOnButtonClicked = {bluetoothViewModel.bluetoothEnableRequest()}
             )
         }
 
         composable(NavItem.Message.route){
             MessageScreen(
                 bluetoothViewModel.state.collectAsState().value.messages,
-                onBackButtonClicked = {navController.navigate(Screen.SCAN.name)},
+                onBackButtonClicked = {navController.navigate(Screen.CONNECTION.name)},
                 onSendMessage = {message -> bluetoothViewModel.sendMessage(message)}
             )
         }

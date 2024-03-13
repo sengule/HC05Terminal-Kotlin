@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.IOException
 
-
 class BluetoothMessageService(private val mSocket: BluetoothSocket) {
 
     private val mInputStream = mSocket.inputStream
@@ -65,8 +64,4 @@ fun String.toMessageModel(sender: String): MessageModel{
         sender = sender,
         message = this
     )
-}
-
-fun MessageModel.toByteArray(): ByteArray{
-    return "$sender : $message".toByteArray()
 }

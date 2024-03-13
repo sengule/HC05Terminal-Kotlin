@@ -11,24 +11,15 @@ import java.io.OutputStream
     Bluetooth Controller for HC-05 module
  */
 interface BluetoothController {
-
-    val scannedDeviceList: StateFlow<List<BluetoothDeviceModel>>
     val pairedDeviceList : StateFlow<List<BluetoothDeviceModel>>
-    val isScanning: StateFlow<Boolean>
-
-    fun resetScannedDeviceList()
+    val isBluetoothEnabled: StateFlow<Boolean>
+    val isModuleConnected: StateFlow<Boolean>
     fun bluetoothEnableRequest()
-    fun scanBluetoothDevices()
     fun updatePairedDevices()
-    fun stopScan()
-
     fun connect(device: BluetoothDeviceModel): Flow<ConnectionResult>
-
     fun startListeningModule(): Flow<MessageModel>
     suspend fun sendMessage(bytes: ByteArray): Boolean
-
+    fun registerBluetoothState()
     fun closeConnection()
     fun releaseBluetooth()
-
-
 }

@@ -31,10 +31,6 @@ import java.util.UUID
 import java.util.logging.Handler
 
 
-/*
-TODO: Complete all methods +
-TODO: handle write and read methods
- */
 
 @SuppressLint("MissingPermission")
 class AppBluetoothController(val context: Context): BluetoothController {
@@ -43,64 +39,42 @@ class AppBluetoothController(val context: Context): BluetoothController {
         private val REQUEST_ENABLE: Int = 1111
         private val SERVER_NAME: String = "my_app"
         private val SERVER_UUID: String = "00001101-0000-1000-8000-00805f9b34fb"
-
     }
 
     private val bluetoothManager = context.getSystemService(BluetoothManager::class.java)
     private val bluetoothAdapter = bluetoothManager?.adapter
 
-    private val _scannedDeviceList = MutableStateFlow<List<BluetoothDeviceModel>>(emptyList())
-    override val scannedDeviceList: StateFlow<List<BluetoothDeviceModel>>
-        get() = _scannedDeviceList.asStateFlow()
-
     private val _pairedDeviceList = MutableStateFlow<List<BluetoothDeviceModel>>(emptyList())
     override val pairedDeviceList: StateFlow<List<BluetoothDeviceModel>>
-        get() = _pairedDeviceList
+        get() = _pairedDeviceList.asStateFlow()
 
-    private val _isScanning = MutableStateFlow<Boolean>(false)
-    override val isScanning: StateFlow<Boolean>
-        get() = _isScanning.asStateFlow()
+    private val _isBluetoothEnabled = MutableStateFlow<Boolean>(bluetoothAdapter?.isEnabled ?: false)
+    override val isBluetoothEnabled: StateFlow<Boolean>
+        get() = _isBluetoothEnabled.asStateFlow()
 
-    private val broadcastReceiver = DeviceFounderReceiver{device->
-        _scannedDeviceList.update {devices->
-            val foundedDevice = device.toBluetoothDeviceModel()
-            if (foundedDevice in devices) devices else devices + foundedDevice
-        }
-    }
+    private val _isModuleConnected = MutableStateFlow<Boolean>(false)
+    override val isModuleConnected: StateFlow<Boolean>
+        get() = _isModuleConnected.asStateFlow()
 
-    private val bluetoothScanReceiver = BluetoothScanReceiver{
-        _isScanning.value = false
-        println("Scanned done")
-    }
 
     private var mmSocket: BluetoothSocket? = null
     private var bluetoothMessageService: BluetoothMessageService? = null
 
+    private val bluetoothStateReceiver = BluetoothStateReceiver(
+        onBluetoothOn = {
+            _isBluetoothEnabled.value = true
+            updatePairedDevices()
+                        },
+        onBluetoothOff = {_isBluetoothEnabled.value = false},
+        onConnection = {_isModuleConnected.value = true},
+        onDisconnect = {_isModuleConnected.value = false}
+    )
+
     init {
-        updatePairedDevices()
-    }
+        registerBluetoothState()
 
-    override fun scanBluetoothDevices() {
-        if (bluetoothAdapter == null)
-            return
-
-        if (!bluetoothAdapter.isEnabled){
-            //_isScanning.value = false
-            bluetoothEnableRequest()
-        }else{
-            context.registerReceiver(
-                broadcastReceiver,
-                IntentFilter(BluetoothDevice.ACTION_FOUND)
-            )
-
-            context.registerReceiver(
-                bluetoothScanReceiver,
-                IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
-            )
-
-            _isScanning.value = true
-            bluetoothAdapter.startDiscovery()
-
+        if (hasPermission(context, Manifest.permission.BLUETOOTH_CONNECT)){
+            updatePairedDevices()
         }
     }
 
@@ -123,16 +97,6 @@ class AppBluetoothController(val context: Context): BluetoothController {
             //enable request for bluetooth
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             startActivityForResult(context as (Activity), enableBtIntent, REQUEST_ENABLE, null)
-        }
-    }
-
-    override fun stopScan() {
-        println(bluetoothAdapter!!.isDiscovering)
-
-        if(bluetoothAdapter!!.isDiscovering){
-            _isScanning.value = false
-            releaseBluetooth()
-            bluetoothAdapter.cancelDiscovery()
         }
     }
 
@@ -163,7 +127,6 @@ class AppBluetoothController(val context: Context): BluetoothController {
                     mmSocket = null
                     emit(ConnectionResult.Error(e.message + "dasda"))
                 }
-
             }
 
         }.flowOn(Dispatchers.IO)
@@ -183,6 +146,20 @@ class AppBluetoothController(val context: Context): BluetoothController {
         return false
     }
 
+    override fun registerBluetoothState() {
+
+        val intentFilter = IntentFilter().apply {
+            addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
+            addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+            addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+        }
+
+        context.registerReceiver(
+            bluetoothStateReceiver,
+            intentFilter
+        )
+    }
+
     override fun closeConnection() {
         mmSocket?.close()
         mmSocket = null
@@ -193,64 +170,9 @@ class AppBluetoothController(val context: Context): BluetoothController {
         //context.unregisterReceiver(bluetoothScanReceiver)
     }
 
-    override fun resetScannedDeviceList(){
-        _scannedDeviceList.value = emptyList()
-
-    }
-
     private fun manageConnectedSocket(cSocket: BluetoothSocket){
         bluetoothMessageService = BluetoothMessageService(cSocket)
     }
-
-
-    /*
-
-    private inner class ConnectThread(device: BluetoothDeviceModel): Thread(){
-        private val mmSocket: BluetoothSocket? by lazy(LazyThreadSafetyMode.NONE) {
-            bluetoothAdapter?.getRemoteDevice(device.macAddress)
-                ?.createRfcommSocketToServiceRecord(UUID.fromString(SERVER_UUID))
-        }
-
-        override fun run() {
-            // Cancel discovery because it otherwise slows down the connection.
-            bluetoothAdapter?.cancelDiscovery()
-
-            mmSocket?.let { socket ->
-                // Connect to the remote device through the socket. This call blocks
-                // until it succeeds or throws an exception.
-
-
-                try {
-                    socket.connect()
-                    println("Connection is succesful")
-                }catch (e: IOException){
-                    println(e.message + "123123")
-
-                    try {
-                        mmSocket!!.close()
-                    } catch (e2: IOException) {
-
-                        println("unable to close() socket during connection failure ${e2.message}", )
-                    }
-
-                }
-
-                // The connection attempt succeeded. Perform work associated with
-                // the connection in a separate thread.
-
-            }
-        }
-
-        fun cancel(){
-            try {
-                mmSocket?.close()
-            } catch (e: IOException) {
-                println(e.message + "dasda")
-            }
-        }
-    }
-     */
-
 
 }
 

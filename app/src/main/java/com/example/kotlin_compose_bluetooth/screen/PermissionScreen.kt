@@ -1,4 +1,4 @@
-package com.example.kotlin_compose_bluetooth.ui.theme.screens
+package com.example.kotlin_compose_bluetooth.screen
 
 import android.Manifest
 import androidx.compose.foundation.layout.Arrangement
@@ -22,12 +22,19 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun PermissionScreen(multiplePermission: MultiplePermissionsState) {
-
+fun PermissionScreen(
+    multiplePermission: MultiplePermissionsState,
+    onPermissionGranted: () -> Unit = {}
+) {
+    //multiplePermission.allPermissionsGranted
     if (multiplePermission.allPermissionsGranted) {
-
+        onPermissionGranted()
     } else {
-        Column {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ){
             Text(
                 getTextToShowGivenPermissions(
                     multiplePermission.revokedPermissions,
@@ -48,55 +55,53 @@ private fun getTextToShowGivenPermissions(
     permissions: List<PermissionState>,
     shouldShowRationale: Boolean
 ): String {
+
     val revokedPermissionsSize = permissions.size
     if (revokedPermissionsSize == 0) return ""
 
-    val textToShow = StringBuilder().apply {
+    val text = StringBuilder().apply {
         append("The ")
     }
 
     for (i in permissions.indices) {
-        textToShow.append(permissions[i].permission)
+        text.append(permissions[i].permission)
         when {
             revokedPermissionsSize > 1 && i == revokedPermissionsSize - 2 -> {
-                textToShow.append(", and ")
+                text.append(", and ")
             }
             i == revokedPermissionsSize - 1 -> {
-                textToShow.append(" ")
+                text.append(" ")
             }
             else -> {
-                textToShow.append(", ")
+                text.append(", ")
             }
         }
     }
-    textToShow.append(if (revokedPermissionsSize == 1) "permission is" else "permissions are")
-    textToShow.append(
+    text.append(if (revokedPermissionsSize == 1) "permission is" else "permissions are")
+    text.append(
         if (shouldShowRationale) {
-            " important. Please grant all of them for the app to function properly."
+            " important. To function app properly, please grant permissions."
+
         } else {
-            " denied. The app cannot function without them."
+            " denied. Please grant permissions to continue."
         }
     )
-    return textToShow.toString()
+    return text.toString()
+    
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun GreetingPreview() {
+fun PermissionScreenPreview() {
     val multiplePermissionsState = rememberMultiplePermissionsState(
         permissions_API_31_HIGHER
     )
     KotlinComposeBluetoothTheme {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-
-        }
+        PermissionScreen(multiplePermission = multiplePermissionsState)
     }
 }
+
 
 val permissions_API_31_HIGHER = listOf(
     Manifest.permission.BLUETOOTH,

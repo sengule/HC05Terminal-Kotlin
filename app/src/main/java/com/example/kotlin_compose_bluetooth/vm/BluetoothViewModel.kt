@@ -1,26 +1,18 @@
-package com.example.kotlin_compose_bluetooth.viewmodels
+package com.example.kotlin_compose_bluetooth.vm
 
-import android.os.Message
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.kotlin_compose_bluetooth.BluetoothUIState
 import com.example.kotlin_compose_bluetooth.SERVER_NAME
 import com.example.kotlin_compose_bluetooth.bluetooth.BluetoothController
 import com.example.kotlin_compose_bluetooth.bluetooth.ConnectionResult
 import com.example.kotlin_compose_bluetooth.model.BluetoothDeviceModel
 import com.example.kotlin_compose_bluetooth.model.MessageModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,32 +24,30 @@ class BluetoothViewModel(
 
     private val _state = MutableStateFlow(BluetoothUIState())
     val state = combine(
-        bluetoothController.scannedDeviceList,
         bluetoothController.pairedDeviceList,
+        bluetoothController.isBluetoothEnabled,
+        bluetoothController.isModuleConnected,
         _state
-    ){ scannedDeviceList, pairedDeviceList, state ->
+    ){ pairedDeviceList, isBluetoothEnabled, isModuleConnected,state ->
         state.copy(
-            scannedDevices = scannedDeviceList,
-            pairedDevices = pairedDeviceList
+            pairedDevices = pairedDeviceList,
+            isEnabled = isBluetoothEnabled,
+            isConnected = isModuleConnected
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), _state.value)
 
-    //private val _connectionState = MutableStateFlow<ConnectionResult>(ConnectionResult.ConnectionEmpty) // if connection is established this will be connection done
-    //val connectionState: StateFlow<ConnectionResult> = _connectionState.asStateFlow()
 
-    val isScanning: StateFlow<Boolean>
-        get() = bluetoothController.isScanning
+    private val _isConnecting = MutableStateFlow(false)
+    val isConnecting: StateFlow<Boolean>
+        get() = _isConnecting.asStateFlow()
 
-    fun startScan(){
-        bluetoothController.resetScannedDeviceList()
-        bluetoothController.scanBluetoothDevices()
-    }
-
-    fun stopScan(){
-        bluetoothController.stopScan()
+    fun updatePairedDevices(){
+        bluetoothController.updatePairedDevices()
     }
 
     fun connect(device: BluetoothDeviceModel){
+
+        _isConnecting.value = true
 
         val connectionFlow = bluetoothController.connect(device)
         viewModelScope.launch {
@@ -67,10 +57,17 @@ class BluetoothViewModel(
                         println("Connection is successful. Done with ${device.name}")
                         //_connectionState.value = ConnectionResult.ConnectionDone
                         _state.update { it.copy(isConnected = true) }
+                        _isConnecting.value = false
                         listenModuleMessages()
                     }
-                    is ConnectionResult.Error -> println("Connection failed due to ${state.message}")
-                    ConnectionResult.ConnectionEmpty -> println("Connection is empty now")
+                    is ConnectionResult.Error -> {
+                        println("Connection failed due to ${state.message}")
+                        _isConnecting.value = false
+                    }
+                    ConnectionResult.ConnectionEmpty -> {
+                        println("Connection is empty now")
+                        _isConnecting.value = false
+                    }
                 }
             }
         }
@@ -95,6 +92,10 @@ class BluetoothViewModel(
             }
 
         }
+    }
+
+    fun bluetoothEnableRequest(){
+        bluetoothController.bluetoothEnableRequest()
     }
 
     private fun listenModuleMessages(){
@@ -131,30 +132,5 @@ class BluetoothViewModel(
         super.onCleared()
         bluetoothController.releaseBluetooth()
     }
-
-
-    /*
-       private fun Flow<ConnectionResult>.listen(): Job {
-        return onEach {result->
-
-            when(result){
-                is ConnectionResult.ConnectionDone -> {
-                    println("Connection is done")
-                }
-                is ConnectionResult.Error -> {
-                    println("There is a error ${result.message}")
-                }
-
-                ConnectionResult.ConnectionEmpty -> {}
-            }
-
-        }.catch {
-            bluetoothController.closeConnection()
-            println("Error occured in listening:  ${it.localizedMessage}")
-        }.launchIn(viewModelScope)
-    }
-
-
-     */
 
 }

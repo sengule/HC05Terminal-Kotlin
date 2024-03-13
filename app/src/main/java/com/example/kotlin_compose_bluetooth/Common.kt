@@ -10,18 +10,18 @@ fun hasPermission(context: Context, permission: String): Boolean{
     return context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
 }
 
-val SERVER_NAME = "Android-Server"
-val CLIENT_NAME = "HC-05"
-
+const val SERVER_NAME = "Android-Server"
+const val CLIENT_NAME = "HC-05"
 
 val testDeviceModelList = arrayListOf<BluetoothDeviceModel>(
-    BluetoothDeviceModel("Hello", "123"),
-    BluetoothDeviceModel("Hello", "123"),
-    BluetoothDeviceModel("Hello", "123"),
-    BluetoothDeviceModel("Hello", "123"),
-    BluetoothDeviceModel("Hello", "123"),
-    BluetoothDeviceModel("Hello", "123"),
+    BluetoothDeviceModel("Test", "123"),
+    BluetoothDeviceModel("Test", "123"),
+    BluetoothDeviceModel("Test", "123"),
+    BluetoothDeviceModel("Test", "123"),
     BluetoothDeviceModel("HC-05", "123"),
+    BluetoothDeviceModel("Test", "123"),
+    BluetoothDeviceModel("Test", "123"),
+
 )
 
 val testMessages = arrayListOf<MessageModel>(
